@@ -1,0 +1,12 @@
+# 五个 Agent、搜索与退回必要性复核使用的模型。换模型只改这里。
+# 写成 "anthropic:claude-fable-5-2" 表示该角色直连 Anthropic API（需要 ANTHROPIC_API_KEY）。
+# 模型 ID 和价格以 https://openrouter.ai/models 为准，选用的模型必须支持工具调用。
+lead: google/gemini-4-carbon
+research: moonshotai/kimi-k3.1-pro
+analysis: anthropic/claude-fable-5.2
+bear: openai/gpt-6.2-astra
+audit: z-ai/glm-5.3-prime
+# 如需用 DeepSeek 读资料，可将 research 设为 deepseek/deepseek-v4.1-flash-1017。
+search: perplexity/sonar
+# 按需核对引用写法和成稿金额。
+rejection_review: google/gemini-3.1-flash-lite

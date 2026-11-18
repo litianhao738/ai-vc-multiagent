@@ -1,0 +1,57 @@
+key: aigc-content
+name: AIGC 内容
+description: 用生成式 AI 生产视频、图片、音频、文本等内容的应用，例如 AI 视频 Agent、数字人、AI 设计工具。
+valuation_basis: 收入倍数（估值 / 年化收入），参照同赛道近期融资案例
+
+dimensions:
+  - key: team
+    name: 团队
+    weight: 0.20
+    rubric: 9-10 顶尖且高度匹配，做过同类产品并取得成绩；7-8 背景扎实，个别短板；5-6 背景一般或关键角色缺失；3-4 匹配度低；1-2 有重大红旗
+  - key: market
+    name: 市场
+    weight: 0.15
+    rubric: 9-10 大市场且处在爆发期；7-8 市场可观、增长明确；5-6 市场有限或时机不明；3-4 需求存疑；1-2 伪需求
+  - key: product
+    name: 产品
+    weight: 0.20
+    rubric: 9-10 体验领先且难以被模型厂商替代；7-8 有差异化，壁垒在形成；5-6 同质化明显；3-4 容易被替代；1-2 产品未成型
+  - key: competition
+    name: 竞争
+    weight: 0.15
+    rubric: 9-10 细分领域明显领先；7-8 第一梯队；5-6 竞争激烈、优势不明显；3-4 处于劣势；1-2 大厂已经碾压
+  - key: traction
+    name: 商业化
+    weight: 0.20
+    rubric: 9-10 高增长、留存好、毛利健康；7-8 增长明确，毛利可接受；5-6 有收入但质量存疑（口径不清、毛利未知）；3-4 收入很少；1-2 没有商业化
+  - key: risk
+    name: 风险可控度
+    weight: 0.10
+    rubric: 10 分表示风险最低。9-10 主要风险可控；7-8 有明确风险但有缓释办法；5-6 风险较多；3-4 存在可能致命的风险；1-2 风险极高
+
+key_metrics:
+  - ARR 或年化收入（注明口径）
+  - 付费转化率
+  - 付费用户留存
+  - 毛利率（模型调用成本占收入的比例）
+  - 用户规模和地域分布
+
+# 报告展示的代码计算指标，按商业模式选择；键名见 vcagents/financials.py 的 METRIC_LABELS
+metrics: [arr_musd, growth_rate, gross_margin, nrr, cac_musd, ltv_musd, ltv_cac, cac_payback_months, burn_multiple, rule_of_40, runway_months]
+
+must_check_sources:
+  - 公司官网、定价页
+  - 应用商店排名和评分
+  - 网站流量（如 SimilarWeb）
+  - Product Hunt、X 等社区讨论
+  - 融资报道（36氪、投资界、Crunchbase）
+
+sector_risks:
+  - 被模型厂商或大厂的同类产品挤压
+  - 依赖第三方模型，毛利和供应不可控
+  - 生成内容的版权和肖像权
+  - 出海业务的数据合规
+
+benchmarks:
+  - HeyGen
+  - Higgsfield

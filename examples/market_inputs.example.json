@@ -1,0 +1,20 @@
+{
+  "currency": "USD",
+  "period": "2025 年；全部为演示假设",
+  "inputs": {
+    "target_customers": 1000,
+    "annual_spend_per_customer_musd": 0.01,
+    "serviceable_share": 0.5,
+    "obtainable_share": 0.2,
+    "related_market_musd": 40,
+    "addressable_share": 0.3
+  },
+  "sources": {
+    "target_customers": "合成演示假设，非真实市场数据",
+    "annual_spend_per_customer_musd": "合成演示假设，非真实市场数据",
+    "serviceable_share": "用户主观演示假设",
+    "obtainable_share": "用户主观演示假设",
+    "related_market_musd": "合成演示假设，非真实市场数据",
+    "addressable_share": "用户主观演示假设"
+  }
+}

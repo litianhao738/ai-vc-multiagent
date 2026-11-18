@@ -1,0 +1,56 @@
+key: embodied-ai
+name: 具身智能
+description: 让机器人在物理世界中感知、决策和行动的公司，包括人形机器人、工业与服务机器人、机器人基础模型和核心零部件。
+valuation_basis: 订单与出货规模，参照同类公司的融资案例
+
+dimensions:
+  - key: team
+    name: 团队
+    weight: 0.25
+    rubric: 9-10 同时具备机器人硬件、算法和量产经验；7-8 核心能力齐全，量产经验较少；5-6 偏学术或偏单一能力；3-4 关键能力缺失；1-2 有重大红旗
+  - key: tech
+    name: 技术与量产
+    weight: 0.25
+    rubric: 9-10 技术领先且已稳定量产；7-8 技术有优势，进入小批量交付；5-6 停留在样机或演示；3-4 技术路线存疑；1-2 没有可用产品
+  - key: market
+    name: 市场
+    weight: 0.15
+    rubric: 9-10 场景明确、付费方清楚且规模大；7-8 场景明确，规模待验证；5-6 场景分散；3-4 找不到愿意付费的场景；1-2 伪需求
+  - key: competition
+    name: 竞争
+    weight: 0.10
+    rubric: 9-10 明显领先；7-8 第一梯队；5-6 竞争激烈；3-4 处于劣势；1-2 大厂已经碾压
+  - key: traction
+    name: 商业化
+    weight: 0.10
+    rubric: 9-10 有量产订单和回款；7-8 有付费试点并在转量产；5-6 只有意向订单或免费试点；3-4 没有客户；1-2 无商业化计划
+  - key: risk
+    name: 风险可控度
+    weight: 0.15
+    rubric: 10 分表示风险最低。9-10 供应链和资金风险可控；7-8 有明确风险但有缓释办法；5-6 风险较多；3-4 存在可能致命的风险；1-2 风险极高
+
+key_metrics:
+  - 单台硬件成本（BOM）
+  - 出货量
+  - 订单性质（意向、付费试点还是量产）
+  - 核心零部件自研比例
+  - 现金消耗和资金跑道
+
+# 报告展示的代码计算指标，按商业模式选择；键名见 vcagents/financials.py 的 METRIC_LABELS
+metrics: [growth_rate, gross_margin, unit_gross_margin, acceptance_rate, production_yield, collection_rate, after_sales_cost_ratio, runway_months]
+
+must_check_sources:
+  - 公司官网和产品发布
+  - 招投标和采购公告
+  - 供应链报道
+  - 专利数据库
+  - 融资报道（36氪、投资界、Crunchbase）
+
+sector_risks:
+  - 量产爬坡和供应链
+  - 烧钱快，依赖持续融资
+  - 技术路线之争（人形、轮式、专用形态）
+  - 场景落地慢于预期
+  - 出口管制和核心零部件供应
+
+benchmarks: []

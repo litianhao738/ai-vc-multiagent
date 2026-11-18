@@ -1,0 +1,35 @@
+{
+  "currency": "USD",
+  "period": "2025 全年；全部为演示假设",
+  "previous_period": "2024 全年；演示假设",
+  "inputs": {
+    "revenue_current_musd": 6,
+    "revenue_previous_musd": 2,
+    "direct_cost_musd": 4.2,
+    "units_delivered": 120,
+    "units_accepted": 96,
+    "units_produced": 150,
+    "units_passed_qc": 132,
+    "avg_selling_price_musd": 0.05,
+    "unit_cost_musd": 0.035,
+    "cash_collected_musd": 4.5,
+    "after_sales_cost_musd": 0.3,
+    "cash_musd": 12,
+    "monthly_net_burn_musd": 0.8
+  },
+  "sources": {
+    "revenue_current_musd": "合成演示假设：确认收入",
+    "revenue_previous_musd": "合成演示假设：确认收入",
+    "direct_cost_musd": "合成演示假设：含 BOM、装配与交付成本",
+    "units_delivered": "合成演示假设：已发货台数",
+    "units_accepted": "合成演示假设：客户签收验收台数",
+    "units_produced": "合成演示假设",
+    "units_passed_qc": "合成演示假设：出厂质检合格台数",
+    "avg_selling_price_musd": "合成演示假设",
+    "unit_cost_musd": "合成演示假设：单台 BOM 与装配成本",
+    "cash_collected_musd": "合成演示假设：期间实际回款",
+    "after_sales_cost_musd": "合成演示假设：维修、备件与现场支持",
+    "cash_musd": "合成演示假设：期末现金",
+    "monthly_net_burn_musd": "合成演示假设"
+  }
+}

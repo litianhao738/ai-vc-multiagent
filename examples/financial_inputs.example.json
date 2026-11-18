@@ -1,0 +1,21 @@
+{
+  "currency": "USD",
+  "period": "2025 全年，月度字段为同期月平均值；全部为演示假设",
+  "previous_period": "2024 全年；演示假设",
+  "inputs": {
+    "mrr_musd": 0.1,
+    "revenue_current_musd": 1.5,
+    "revenue_previous_musd": 1,
+    "direct_cost_musd": 0.6,
+    "cash_musd": 2,
+    "monthly_net_burn_musd": 0.1
+  },
+  "sources": {
+    "mrr_musd": "合成演示假设，非真实公司财务",
+    "revenue_current_musd": "合成演示假设，非真实公司财务",
+    "revenue_previous_musd": "合成演示假设，非真实公司财务",
+    "direct_cost_musd": "合成演示假设，非真实公司财务",
+    "cash_musd": "合成演示假设，非真实公司财务",
+    "monthly_net_burn_musd": "合成演示假设，非真实公司财务"
+  }
+}

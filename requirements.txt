@@ -1,0 +1,10 @@
+openai>=3.0          # OpenRouter 兼容 OpenAI 接口
+anthropic>=2.3       # 只有某个角色直连 Anthropic 时需要
+httpx>=0.28
+beautifulsoup4>=4.12
+pypdf>=5.0
+python-dotenv>=1.0
+pyyaml>=6.0
+streamlit>=1.37
+agentscope==2.0.11  # AgentScope 2.x Agent / Toolkit / AgentState
+reportlab>=4.4     # 实际分页、校验最多十页的 PDF

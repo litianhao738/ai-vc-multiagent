@@ -1,0 +1,22 @@
+key: general
+name: 通用投研
+description: 先界定研究范围、实际使用者、付费方与替代方案，再从当前资料中确认行业指标和可比对象。
+valuation_basis: 优先选同商业模式、同发展阶段且口径相近的案例，说明可比条件和估值依据。证据不足时保留待核实项。
+dimensions:
+  - {key: team, name: 团队, weight: 0.20, rubric: 从团队与业务的匹配、已完成的交付和关键岗位评估执行能力。}
+  - {key: market, name: 市场, weight: 0.15, rubric: 根据付费方、需求频次、可触达市场和采用障碍评估机会。}
+  - {key: product, name: 产品与交付, weight: 0.20, rubric: 对照客户替代方案，评估使用效果、投入成本和规模化交付能力。}
+  - {key: competition, name: 竞争与持续性, weight: 0.15, rubric: 检验最大差异如何影响客户选择、竞争者复制成本和价值获取。}
+  - {key: traction, name: 商业化, weight: 0.20, rubric: 核对适用的订单、收入、回款或重复购买口径，区分试点与持续经营表现。}
+  - {key: risk, name: 风险可控度, weight: 0.10, rubric: 评估足以改变投资动作的风险、缓释条件和失效信号。分数越高表示风险越可控。}
+key_metrics:
+  - 识别最能反映客户价值与交付成本的行业指标，说明定义、期间和来源。
+  - 按企业阶段核实需求验证、付费、回款及现金消耗情况。
+metrics: [growth_rate, gross_margin, collection_rate, runway_months]
+must_check_sources:
+  - 公司披露、产品文档与本次提供的资料
+  - 可核对的客户或采购方披露、监管或行业统计原文
+  - 可比企业原始披露及同口径产品或交易资料
+sector_risks:
+  - 检验客户集中、关键供应依赖、合规或资本需求中哪些实际适用，并说明依据。
+benchmarks: []
