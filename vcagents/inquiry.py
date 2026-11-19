@@ -139,14 +139,26 @@ def audit_errors(data: dict, question_ids: list[str], method_ids: list[str], evi
     return errors
 
 
+def private_material(result):
+    return bool(result.memory_config.get("private_inputs") or result.financial_metrics or result.market_metrics
+                or result.deal_metrics or any(read.get("kind") == "document" for reads in result.source_reads.values()
+                                              for read in reads))
+
+
+def public_learning_case(result):
+    return (result.status == "completed" and result.report_status == "待人工复核的研究报告"
+            and bool(result.models) and "mock" not in result.models.values() and not private_material(result)
+            and not (result.errors or result.unresolved_checks or result.report_checks or result.quality_issues))
+
+
 def replay_method_case(result, method: dict) -> dict:
     """Recheck archived execution, independent review and final publication, without an API call."""
     reasons = []
     if (result.status != "completed" or result.report_status != "待人工复核的研究报告"
             or result.errors or result.unresolved_checks or result.report_checks or result.quality_issues
-            or result.models.get("lead", result.models.get("chair")) == "mock"):
+            or not result.models or "mock" in result.models.values()):
         reasons.append("报告未完成正式研究复核或为演示数据")
-    if any(read.get("kind") == "document" for reads in result.source_reads.values() for read in reads):
+    if private_material(result):
         reasons.append("包含私有上传资料，不进入共享方法记忆")
     research_hash = result.material_versions.get("research", {}).get("sha256")
     if not research_hash or method.get("research_sha256") != research_hash or method.get("status") != "reviewed":

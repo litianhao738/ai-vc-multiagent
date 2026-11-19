@@ -329,7 +329,8 @@ def _evidence_refs(ids: list[str]) -> dict:
     return {"type": "array", "items": items, "maxItems": min(6, len(ids)), "uniqueItems": True}
 
 
-def research_checkpoint_schema(question_ids: list[str], evidence_ids: list[str], companies: list[str]) -> dict:
+def research_checkpoint_schema(question_ids: list[str], evidence_ids: list[str], companies: list[str],
+                               method_ids=()) -> dict:
     return _obj({
         "next_action": _enum(["finish", "research"], "成稿或补查；只在补查可能改变判断时选research"),
         "reason": _str("本轮研究决策的简短理由，说明补查价值或剩余局限"),
@@ -350,6 +351,8 @@ def research_checkpoint_schema(question_ids: list[str], evidence_ids: list[str],
             "question": _str("新问题的具体表述；沿用已有问题时可留空"),
             "scope": _enum(["sector", *companies], "补查范围：赛道或一家已存在的公司"),
             "method": _str("如何找原文或验证，说明如何区分不同解释；不能把搜索当作产品实测"),
+            **({"origin_method_id": _enum(["", *method_ids],
+                "实际采用了本轮召回的方法时填对应编号，独立设计的方法留空")} if method_ids else {}),
             "expected_impact": _str("补齐后可能怎样改变判断；不编造量化门槛"),
         }), "最值得补查的任务；finish时为空，最多2项"), "maxItems": 2},
     })

@@ -11,6 +11,7 @@ from . import schemas, grounding, inquiry
 from .config import ROOT
 from .handoffs import MaterialBoard, HandoffError
 from .main_roles import CHALLENGER, MAIN_ROLES
+from .learning import editing_prompt, editor_template, editor_version
 from .pipeline import SectorPipeline as ExpandedPipeline, CompanyInput, PipelineError, _namespace_sources
 from .roles import CHAIR, SECTOR_RESEARCHER, COMPANY_RESEARCHER, COMPANY_ANALYST, COMPARATOR, FACT_CHECKER, system_prompt
 from .runtime import AgentScopeAgent
@@ -66,9 +67,13 @@ class MainAgentPipeline(ExpandedPipeline):
         result.models = {key: "mock" if self.settings.mock else self.settings.role_models[key]
                          for key in (*MAIN_ROLES, "search")}
         self._method_memory = []
+        self._editor_template = editor_template()
+        self._editor_rule = {"id": None, "rule": ""}
         if self.memory:
             try:
                 self._method_memory = self.memory.recall_methods(self.sector.key, query=request.focus)
+                version = editor_version(result.models["lead"], self._editor_template)
+                self._editor_rule = self.memory.learning.active_rule(self.sector.key, version)
             except Exception as exc:
                 self._stage("方法记忆读取未完成，沿原研究议程继续：" + str(exc))
         # Which prompt text produced which report: required before any prompt change can be evaluated.
@@ -77,11 +82,16 @@ class MainAgentPipeline(ExpandedPipeline):
         result.research_state = inquiry.initial_state(result.research_plan, bool(request.companies),
                                                       request.selection_rationale)
         result.research_state["method_memory"] = self._method_memory
+        if self._editor_rule["id"] is not None:
+            result.research_state["editing_rule_id"] = self._editor_rule["id"]
         self.board.publish("plan", result.research_plan)
         self.board.publish("inquiry", result.research_state)
 
     def _prompt(self, name):
-        text = (ROOT / "prompts" / f"{name}.md").read_text(encoding="utf-8")
+        if name == "lead_editing":
+            text = editing_prompt(self._editor_template, self._editor_rule["rule"])
+        else:
+            text = (ROOT / "prompts" / f"{name}.md").read_text(encoding="utf-8")
         self.last_result.prompt_versions[f"prompts/{name}.md"] = _digest(text)
         return text
 
@@ -99,6 +109,15 @@ class MainAgentPipeline(ExpandedPipeline):
             companies = [CompanyInput(name) for name in sector["candidates"]]
         self.companies = {company.name: company for company in companies}
         result.companies = list(self.companies)
+        self._thesis_leads = []
+        if self.memory:
+            try:
+                self._thesis_leads = self.memory.learning.thesis_leads(self.sector.key, result.companies)
+                if self._thesis_leads:
+                    result.research_state["thesis_card_ids"] = [lead["card_id"] for lead in self._thesis_leads]
+                    self.board.publish("inquiry", result.research_state)
+            except Exception as exc:
+                self._stage("随访线索暂不可用，继续使用本轮材料：" + str(exc))
         self._research_all(result)
 
     def _research_all(self, result, correction=""):
@@ -112,6 +131,9 @@ class MainAgentPipeline(ExpandedPipeline):
                 + json.dumps({"companies": [{"name": c.name, "website": c.website, "urls": c.urls, "notes": c.notes}
                                            for c in self.companies.values()],
                               "research_plan": result.research_plan, "focus": self.request.focus}, ensure_ascii=False))
+        if self._thesis_leads:
+            task += ("\n历史论点与人工随访，仅用于设计本轮的核查问题。核实当前公司并重读原文后才可引用。"
+                     + json.dumps(self._thesis_leads, ensure_ascii=False))
         if self.fact_docs:
             task += "\n上传资料使用完整公司前缀读取：\n" + self.fact_docs.overview()
         if correction:
@@ -348,7 +370,7 @@ class MainAgentPipeline(ExpandedPipeline):
             usable = inquiry.usable_evidence(result)
             excluded = sorted(inquiry.flagged_evidence(result))
             schema = schemas.research_checkpoint_schema([q["question_id"] for q in state["questions"]],
-                list(usable), list(self.companies))
+                list(usable), list(self.companies), [m["method_id"] for m in self._method_memory])
             record = {"kind": "checkpoint", "round": round_number, "status": "running",
                       "before": deepcopy(state), "materials": self.board.manifest(), "excluded_evidence_ids": excluded}
             result.research_iterations.append(record)
@@ -410,8 +432,10 @@ class MainAgentPipeline(ExpandedPipeline):
                     "区分产品标价、用户总成本、公司交付成本、研发投入和获客成本；没有测试工具或人工测试记录，"
                     "不得把检索资料称为产品实测。不要为了补齐答案编造数字。\n"
                     + json.dumps({"tasks": tasks, "current_materials": previous}, ensure_ascii=False))
+            started = time.monotonic()
             output = self._run(COMPANY_RESEARCHER, task, self._research_toolbox(), phase, "研究主Agent：问题定向补查",
                                schemas.research_followup_schema(names, include_sector))
+            record["research_seconds"] = round(time.monotonic() - started, 2)
             if set(output["companies"]) != set(names) or ("sector" in output) != include_sector:
                 raise ValueError("补查输出范围与授权任务不一致")
             sheets = {name: _namespace_sources(output["companies"][name], f"C{list(self.companies).index(name) + 1}",
@@ -441,6 +465,7 @@ class MainAgentPipeline(ExpandedPipeline):
                 result.research_methods.append({"method_id": f"M{round_number}-{i}", "task_id": task["task_id"],
                     "question_id": task["question_id"], "question": task["question"], "scope": task["scope"],
                     "procedure": task["method"], "expected_impact": task["expected_impact"], "phase": phase,
+                    "origin_method_id": task.get("origin_method_id", ""),
                     "status": "candidate", "research_sha256": research_hash, "validation": {}})
             return True
         except (RunStopped, HandoffError):

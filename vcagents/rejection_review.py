@@ -14,8 +14,9 @@ from .report_review import review_result
 
 
 class RejectionReviewer:
-    def __init__(self, settings, router, emit=None):
+    def __init__(self, settings, router, emit=None, *, prompts=None):
         self.settings, self.router = settings, router
+        self.prompts = prompts or {}
         self.emit = emit or (lambda message: None)
         self._lock = threading.RLock()
         self.reset()
@@ -93,7 +94,7 @@ class RejectionReviewer:
             session, started = None, time.monotonic()
             try:
                 model = self.router.for_role("rejection_review")
-                system = (ROOT / "prompts" / f"{scope}.md").read_text(encoding="utf-8")
+                system = self.prompts.get(scope) or (ROOT / "prompts" / f"{scope}.md").read_text(encoding="utf-8")
                 session = model.session(system, prompt, [tool], "low")
                 self.emit(progress)
                 turn = session.send()

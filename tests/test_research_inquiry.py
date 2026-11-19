@@ -252,6 +252,36 @@ def method_case():
 
 
 class MethodCaseReplayTest(unittest.TestCase):
+    def test_subsequent_report_records_only_selected_and_executed_historical_methods(self):
+        root = self.enterContext(tempfile.TemporaryDirectory())
+        memory = ResearchMemory(Path(root) / "memory.sqlite3")
+        memory.remember_result(method_case())
+        original = memory.recall_methods("aigc-content")[0]
+        for outcome in ("useful", "no_change", "inconclusive", "failed", "private", "unselected", "stale"):
+            result = method_case()
+            result.research_state["method_memory"] = [original] if outcome != "unselected" else []
+            task = result.research_iterations[0]
+            task.update(round=1, research_seconds=10, after={"research": {"sha256": "current"}})
+            task["tasks"][0]["origin_method_id"] = original["method_id"]
+            method = result.research_methods[0]
+            method["origin_method_id"] = original["method_id"]
+            if outcome in ("no_change", "failed"):
+                task["status"] = outcome
+                result.research_methods = []
+            elif outcome == "inconclusive":
+                method["validation"]["verdict"] = "not_demonstrated"
+            elif outcome == "private":
+                result.memory_config["private_inputs"] = True
+            elif outcome == "stale":
+                method["research_sha256"] = "old"
+            counts = memory.remember_result(result)
+            self.assertEqual(counts.get("method_reuse", 0), int(outcome in ("useful", "inconclusive", "no_change")))
+            self.assertFalse(memory.remember_result(result).get("method_reuse"))
+        self.assertEqual(memory.recall_methods("aigc-content")[0]["reuse"],
+                         {"trials": 3, "useful": 1, "no_change": 1, "inconclusive": 1})
+        self.assertEqual(len(memory.recall_methods("aigc-content")), 1)
+        self.assertEqual(memory.learning.reuse_history("aigc-content")[0]["batch_seconds"], 10)
+
     def test_public_independently_reviewed_case_can_be_replayed_and_remembered_as_method_only(self):
         result = method_case()
         self.assertTrue(replay_method_case(result, result.research_methods[0])["accepted"])

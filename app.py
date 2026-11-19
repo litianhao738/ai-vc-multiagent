@@ -13,6 +13,7 @@ from vcagents import CompanyInput, DocumentStore, SectorPipeline, SectorRequest,
 from vcagents.config import DEFAULT_REPORT_MAX_PAGES, MAX_COMPANIES, REPORT_PAGE_CAP
 from vcagents.financials import parse_financial_data, parse_market_data
 from vcagents.project_db import ProjectDatabase
+from vcagents.learning_ui import memory_panel
 from vcagents.report import format_run_cost, render_audit
 
 
@@ -230,8 +231,8 @@ def _page():
                 budget = st.number_input("费用停止阈值（美元，可选）", min_value=0.01, value=None, step=1.0,
                                          key="run_cost_limit", placeholder="留空则不限",
                                          help="已回传费用达到阈值后停止发出新请求。在途请求仍可能计费。")
-            memory_enabled = st.toggle("复用历史来源与纠错线索", value=True, key="memory_enabled")
-            st.caption("历史线索需重新读取原文后才能作为本轮证据；上传资料不自动进入公共记忆。")
+            memory_enabled = st.toggle("使用跨报告研究记忆", value=True, key="memory_enabled")
+            st.caption("真实研究可复用编辑准则、补查方法和历史线索。引用历史材料须重新读取原文。")
             st.caption("总控、研究、投资分析、审计四个模块共用五个 Agent。分析模块的正反双方交锋两轮，关键事实由审计核查。")
     if mock:
         st.caption(f"演示使用模拟资料，API 费用为零。本次报告含来源与附录最多 {page_limit} 页。")
@@ -294,6 +295,7 @@ def _page():
                 selection_rationale, report_max_pages=page_limit, cost_budget_usd=budget)
     _results()
     _report_history(database, sectors)
+    memory_panel(database, sectors, sector, mock)
 
 
 def main():

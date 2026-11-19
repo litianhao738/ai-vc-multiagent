@@ -13,7 +13,8 @@ import json
 from pathlib import Path
 import sqlite3
 
-from .inquiry import replay_method_case
+from .inquiry import private_material, public_learning_case, replay_method_case
+from .learning import LearningJournal
 
 
 def _now():
@@ -42,10 +43,12 @@ class ResearchMemory:
                     recorded_at TEXT NOT NULL, expires_at TEXT NOT NULL
                 );
             """)
+        self.learning = LearningJournal(self._connect)
 
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=15)
         db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys=ON")
         return db
 
     def _put(self, sector, entity, kind, fact_key, text, payload, run_id, status="active"):
@@ -93,6 +96,9 @@ class ResearchMemory:
 
     def remember_result(self, result) -> dict:
         """Write after checks; private uploads and unsupported prose are excluded."""
+        counts = {"facts": 0, "hypotheses": 0, "corrections": 0, "methods": 0}
+        if "mock" in result.models.values():
+            return counts
         checks = [*result.fact_check.get("claims", []), *result.decision_fact_check.get("claims", [])]
         supported = {}
         for claim in checks:
@@ -102,7 +108,6 @@ class ResearchMemory:
                     supported[key] = claim["verdict"]
         if result.errors or result.unresolved_checks or result.report_checks or result.report_status != "待人工复核的研究报告":
             supported = {}  # Drafts may retain hypotheses/corrections, never promote facts.
-        counts = {"facts": 0, "hypotheses": 0, "corrections": 0, "methods": 0}
         run_id = getattr(result, "run_id", "") or result.started_at
         sheets = [("", result.sector_brief), *result.fact_sheets.items()]
         for entity, sheet in sheets:
@@ -123,7 +128,7 @@ class ResearchMemory:
                            "as_of": evidence.get("as_of", ""), "verdict": supported[evidence["evidence_id"]],
                            "source_type": evidence.get("source_type", "未知")}, run_id)
                 counts["facts"] += 1
-        private_context = any(read.get("kind") == "document" for reads in result.source_reads.values() for read in reads)
+        private_context = private_material(result)
         if result.decision and not private_context:
             self._put(result.sector_key, result.decision.get("top_pick", ""), "hypothesis", "investment_thesis",
                       result.decision.get("headline", ""),
@@ -165,6 +170,9 @@ class ResearchMemory:
                                (result.sector_key, entity.strip().casefold(), text))
                 counts["corrections"] += 1
         counts["methods"] = self.remember_methods(result)
+        if public_learning_case(result):
+            counts["method_reuse"] = self._remember_reuse(result)
+            counts["theses"] = self.learning.freeze_thesis(result)
         return counts
 
     def remember_methods(self, result) -> int:
@@ -172,7 +180,7 @@ class ResearchMemory:
         for method in getattr(result, "research_methods", []):
             evaluation = replay_method_case(result, method)
             method["replay_evaluation"] = evaluation
-            if not evaluation["accepted"]:
+            if not evaluation["accepted"] or method.get("origin_method_id"):
                 continue
             validation = method["validation"]
             identity = json.dumps([result.sector_key, method["procedure"], method["question"], validation["limitations"]],
@@ -194,15 +202,69 @@ class ResearchMemory:
             count += 1
         return count
 
+    def _remember_reuse(self, result):
+        recalled = {m["method_id"] for m in result.research_state.get("method_memory", [])}
+        research_hash = result.material_versions.get("research", {}).get("sha256")
+        if not recalled or not research_hash:
+            return 0
+        methods = {m["task_id"]: m for m in result.research_methods}
+        accepted = {h["phase"] for h in result.handoffs if h.get("status") == "accepted"}
+        count = 0
+        with closing(self._connect()) as db, db:
+            for row in result.research_iterations:
+                phase = f"research_followup_{row.get('round')}"
+                if (row.get("kind") != "followup" or phase not in accepted
+                        or row.get("status") not in ("completed", "no_change")):
+                    continue
+                for task in row.get("tasks", []):
+                    origin = task.get("origin_method_id")
+                    if not origin or origin not in recalled:
+                        continue
+                    method = methods.get(task["task_id"], {})
+                    if row["status"] == "no_change":
+                        if row.get("after", {}).get("research", {}).get("sha256") != research_hash:
+                            continue
+                        outcome, reason = "no_change", "本次执行后整批底稿未变化"
+                    elif (method.get("origin_method_id") != origin or method.get("phase") != phase
+                          or method.get("research_sha256") != research_hash
+                          or method.get("status") != "reviewed"):
+                        continue
+                    elif method["replay_evaluation"]["accepted"]:
+                        outcome, reason = "useful", method["validation"]["reason"]
+                    elif method["validation"].get("verdict") == "not_demonstrated":
+                        outcome, reason = "inconclusive", method["validation"]["reason"]
+                    else:
+                        continue
+                    inserted = db.execute("""INSERT OR IGNORE INTO method_reuse
+                        (method_id,run_id,task_id,outcome,reason,batch_seconds)
+                        SELECT id,?,?,?,?,? FROM research_method_memory WHERE id=? AND sector=?""",
+                        (result.run_id, task["task_id"], outcome, reason, row.get("research_seconds"), origin,
+                         result.sector_key)).rowcount
+                    if inserted and outcome == "useful":
+                        now = _now()
+                        until = (now + timedelta(days=self.ttl_days)).isoformat()
+                        db.execute("UPDATE research_method_memory SET recorded_at=?, expires_at=MAX(expires_at,?) WHERE id=?",
+                                   (now.isoformat(), until, origin))
+                    count += inserted
+        return count
+
     def recall_methods(self, sector: str, query: str = "", limit: int = 3) -> list[dict]:
         """Return case-validated procedures separately from facts and old evidence IDs."""
         with closing(self._connect()) as db:
-            rows = db.execute("SELECT * FROM research_method_memory WHERE sector=? AND expires_at>? "
-                              "ORDER BY recorded_at DESC LIMIT 100", (sector, _now().isoformat())).fetchall()
+            rows = db.execute("""SELECT m.*, COUNT(DISTINCT u.run_id) AS trials,
+                COUNT(DISTINCT CASE WHEN u.outcome='useful' THEN u.run_id END) AS useful,
+                COUNT(DISTINCT CASE WHEN u.outcome='no_change' THEN u.run_id END) AS no_change,
+                COUNT(DISTINCT CASE WHEN u.outcome='inconclusive' THEN u.run_id END) AS inconclusive
+                FROM research_method_memory m LEFT JOIN method_reuse u ON u.method_id=m.id
+                WHERE m.sector=? AND m.expires_at>? GROUP BY m.id ORDER BY m.recorded_at DESC LIMIT 100""",
+                              (sector, _now().isoformat())).fetchall()
         words = query.casefold().split()
-        rows = sorted(rows, key=lambda row: -sum(word in (row["question"] + row["procedure"]).casefold() for word in words))
+        rows = sorted(rows, key=lambda row: (
+            -sum(word in (row["question"] + row["procedure"]).casefold() for word in words),
+            -(row["useful"] - row["inconclusive"] - row["no_change"]) / row["trials"] if row["trials"] >= 2 else 0))
         return [{"method_id": row["id"], "version": row["id"][:12], "procedure": row["procedure"],
                  "question": row["question"], "limitations": row["limitations"],
                  "validated_cases": len(json.loads(row["cases"])),
+                 "reuse": {key: row[key] for key in ("trials", "useful", "no_change", "inconclusive")},
                  "usage": "仅作方法线索；本案例需重新执行与核验，不作为公司事实或当前证据"}
                 for row in rows[:max(0, min(limit, 6))]]

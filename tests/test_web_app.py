@@ -31,6 +31,26 @@ class OptionalInputAppTest(unittest.TestCase):
         self.enterContext(patch("vcagents.project_db.ROOT", root))
         self.enterContext(patch("vcagents.pipeline.ROOT", root))
 
+    def test_memory_panel_can_save_feedback_and_reopen_without_model_calls(self):
+        app = AppTest.from_file(APP, default_timeout=60)
+        app.session_state["learning_open"] = True
+        app.run()
+        self.assertFalse(app.exception)
+        next(w for w in app.text_input if w.label == "反馈来自哪家公司").set_value("Alpha")
+        next(w for w in app.text_area if w.label == "报告原句").set_value("收入规模足以证明技术壁垒。")
+        next(w for w in app.text_area if w.label == "你希望怎样改，为什么").set_value("区分商业和技术证据。")
+        next(w for w in app.button if w.label == "保存改稿反馈").click().run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any("待提炼" in str(w.options) for w in app.selectbox))
+        self.assertTrue(next(w for w in app.button if "由总控提炼" in w.label).disabled)
+        next(w for w in app.text_area if w.label == "拟验证的完整准则").set_value("点出能直接观察到的技术机制。")
+        next(w for w in app.button if w.label == "保存为候选准则").click().run()
+        self.assertTrue(any("待盲评" in str(w.options) for w in app.selectbox))
+        self.assertFalse(app.exception)
+        app.get_by_key("learning_tab").set_value("审计回放").run()
+        self.assertTrue(next(w for w in app.button if "回放当前审计" in w.label).disabled)
+        self.assertFalse(app.exception)
+
     def test_typed_sector_can_generate_and_reopen_its_report_in_a_new_session(self):
         name = "工业视觉 / 质量检测"
         app = AppTest.from_file(APP, default_timeout=60)

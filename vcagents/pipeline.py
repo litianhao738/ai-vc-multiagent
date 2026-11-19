@@ -204,6 +204,10 @@ class SectorPipeline:
             started_at=_now(),
             report_max_pages=self.settings.report_max_pages,
             memory_config={"enabled": bool(self.memory), "path": self.settings.memory_path,
+                           "private_inputs": bool(self.fact_docs or request.market_data or request.selection_rationale or any(
+                               c.notes or c.financial_data or any(value is not None for value in (
+                                   c.post_money_musd, c.investment_musd, c.round_size_musd, c.preference_stack_musd))
+                               for c in request.companies)),
                            "ttl_days": self.settings.memory_ttl_days},
         )
         self.last_result = result
@@ -1325,6 +1329,19 @@ def save_result(result: AnalysisResult, root: str | Path | None = None) -> Path:
         memo = (f"{_report_title(result)}\n\n> 研究稿状态：页数检查未通过，不能作为正式报告。\n\n"
                 f"{exc}\n\n研究材料与问题记录已保存，需要压缩正文并重新核查后才能出稿。\n")
         pdf, result.report_pages = build_report_pdf(memo, result.report_max_pages)
+    filename = "report.md" if result.report_status in ("演示稿", "待人工复核的研究报告") else "research-draft.md"
+    (folder / filename).write_text(memo, encoding="utf-8")
+    (folder / filename.replace(".md", ".pdf")).write_bytes(pdf)
+
+    def archive_record():
+        for name, content in (("audit.md", render_audit(result)),
+                              ("result.json", json.dumps(result.to_dict(), ensure_ascii=False, indent=2))):
+            temporary = folder / (name + ".tmp")
+            temporary.write_text(content, encoding="utf-8")
+            temporary.replace(folder / name)
+
+    # Learning requires a recoverable source report, including when disk writes fail.
+    archive_record()
     if result.memory_config.get("enabled"):
         try:
             memory = ResearchMemory(result.memory_config["path"], result.memory_config["ttl_days"])
@@ -1332,11 +1349,7 @@ def save_result(result: AnalysisResult, root: str | Path | None = None) -> Path:
         except Exception as exc:
             result.memory_stats = {"error": str(exc)}
             result.report_warnings.append("研究记忆写入失败，本次材料仍保存在结果文件中")
-    filename = "report.md" if result.report_status in ("演示稿", "待人工复核的研究报告") else "research-draft.md"
-    (folder / filename).write_text(memo, encoding="utf-8")
-    (folder / filename.replace(".md", ".pdf")).write_bytes(pdf)
-    (folder / "audit.md").write_text(render_audit(result), encoding="utf-8")
-    (folder / "result.json").write_text(json.dumps(result.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+        archive_record()
     index_export(folder / "result.json")
     return folder
 
